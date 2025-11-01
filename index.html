@@ -3299,6 +3299,100 @@
       }
     }
     
+    // Edit profile function
+    function editProfile() {
+      if (!window.currentUser) {
+        alert('Please log in to edit profile');
+        return;
+      }
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-backdrop" onclick="this.parentElement.remove()"></div>
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <h3>Edit Profile</h3>
+            <button onclick="this.closest('.modal').remove()" class="close-btn">×</button>
+          </div>
+          <form class="modal-form" onsubmit="saveProfile(event)">
+            <label>Username
+              <input type="text" id="editUsername" value="${window.currentUser.profile?.username || ''}" required />
+            </label>
+            <label>Full Name
+              <input type="text" id="editFullName" value="${window.currentUser.profile?.full_name || ''}" />
+            </label>
+            <label>Bio
+              <textarea id="editBio" rows="3" placeholder="Tell us about yourself...">${window.currentUser.profile?.bio || ''}</textarea>
+            </label>
+            <label>Avatar URL
+              <input type="url" id="editAvatarUrl" value="${window.currentUser.profile?.avatar_url || ''}" placeholder="https://example.com/avatar.jpg" />
+            </label>
+            <div class="modal-actions">
+              <button type="button" onclick="this.closest('.modal').remove()" class="cancel-btn">Cancel</button>
+              <button type="submit" class="save-btn">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    
+    // Save profile function
+    async function saveProfile(event) {
+      event.preventDefault();
+      
+      const username = document.getElementById('editUsername').value.trim();
+      const fullName = document.getElementById('editFullName').value.trim();
+      const bio = document.getElementById('editBio').value.trim();
+      const avatarUrl = document.getElementById('editAvatarUrl').value.trim();
+      
+      if (!username) {
+        alert('Username is required');
+        return;
+      }
+      
+      try {
+        const { error } = await window.sb
+          .from('profiles')
+          .update({
+            username: username,
+            full_name: fullName || null,
+            bio: bio || null,
+            avatar_url: avatarUrl || null
+          })
+          .eq('id', window.currentUser.id);
+        
+        if (error) throw error;
+        
+        // Update current user profile
+        window.currentUser.profile = {
+          ...window.currentUser.profile,
+          username: username,
+          full_name: fullName,
+          bio: bio,
+          avatar_url: avatarUrl
+        };
+        
+        // Close modal
+        document.querySelector('.modal').remove();
+        
+        // Refresh profile display
+        loadProfileInfo();
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-weight: 600;';
+        successMsg.textContent = 'Profile updated successfully!';
+        document.body.appendChild(successMsg);
+        setTimeout(() => successMsg.remove(), 3000);
+        
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        alert('Failed to update profile: ' + error.message);
+      }
+    }
+
     // Show profile tab
     function showProfileTab(tabName) {
       // Update tab buttons
@@ -4506,6 +4600,180 @@
       `;
     }
 
+    // Show saved posts
+    async function showSavedPosts() {
+      if (!window.currentUser) {
+        alert('Please log in to view saved posts');
+        return;
+      }
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-backdrop" onclick="this.parentElement.remove()"></div>
+        <div class="modal-dialog" style="max-width: 600px;">
+          <div class="modal-header">
+            <h3>Saved Posts</h3>
+            <button onclick="this.closest('.modal').remove()" class="close-btn">×</button>
+          </div>
+          <div class="modal-body" style="padding: 1rem;">
+            <div class="saved-tabs" style="display: flex; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 1rem;">
+              <button class="saved-tab active" onclick="showSavedTab('all')" id="allSavedTab" style="padding: 1rem 2rem; background: none; border: none; color: #ffffff; cursor: pointer; border-bottom: 2px solid #ffffff;">All</button>
+              <button class="saved-tab" onclick="showSavedTab('posts')" id="postsSavedTab" style="padding: 1rem 2rem; background: none; border: none; color: #8e8e8e; cursor: pointer; border-bottom: 2px solid transparent;">Posts</button>
+              <button class="saved-tab" onclick="showSavedTab('reels')" id="reelsSavedTab" style="padding: 1rem 2rem; background: none; border: none; color: #8e8e8e; cursor: pointer; border-bottom: 2px solid transparent;">Reels</button>
+            </div>
+            <div id="savedContent" style="max-height: 400px; overflow-y: auto;">
+              <div style="text-align: center; padding: 2rem; color: #8e8e8e;">Loading saved posts...</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      await loadSavedContent('all');
+    }
+
+    async function showSavedTab(tabType) {
+      document.querySelectorAll('.saved-tab').forEach(tab => {
+        tab.style.color = '#8e8e8e';
+        tab.style.borderBottomColor = 'transparent';
+      });
+      
+      const activeTab = document.getElementById(`${tabType}SavedTab`);
+      if (activeTab) {
+        activeTab.style.color = '#ffffff';
+        activeTab.style.borderBottomColor = '#ffffff';
+      }
+      
+      await loadSavedContent(tabType);
+    }
+
+    async function loadSavedContent(type) {
+      try {
+        const { data: savedPosts, error } = await window.sb
+          .from('saved_posts')
+          .select(`
+            *,
+            posts!inner(
+              id,
+              caption,
+              image_url,
+              created_at,
+              user_id,
+              profiles!inner(username, avatar_url)
+            )
+          `)
+          .eq('user_id', window.currentUser.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('savedContent');
+        let html = '';
+        
+        if (savedPosts?.length) {
+          let filteredPosts = savedPosts;
+          
+          if (type === 'posts') {
+            filteredPosts = savedPosts.filter(item => 
+              !item.posts.image_url || 
+              (!item.posts.image_url.includes('video') && !item.posts.image_url.startsWith('data:video'))
+            );
+          } else if (type === 'reels') {
+            filteredPosts = savedPosts.filter(item => 
+              item.posts.image_url && 
+              (item.posts.image_url.includes('video') || item.posts.image_url.startsWith('data:video'))
+            );
+          }
+          
+          if (filteredPosts.length > 0) {
+            html = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">';
+            filteredPosts.forEach(item => {
+              const post = item.posts;
+              const isVideo = post.image_url && (post.image_url.includes('video') || post.image_url.startsWith('data:video'));
+              
+              html += `
+                <div onclick="openContentPopup('${post.id}', '${isVideo ? 'reel' : 'post'}')" style="aspect-ratio: 1; background: #333; border-radius: 8px; overflow: hidden; cursor: pointer; position: relative;">
+                  ${post.image_url ? (isVideo ? 
+                    `<video src="${post.image_url}" style="width: 100%; height: 100%; object-fit: cover;" muted />` :
+                    `<img src="${post.image_url}" style="width: 100%; height: 100%; object-fit: cover;" />`
+                  ) : '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff;">📝</div>'}
+                  <div style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7); border-radius: 50%; padding: 4px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#ffd700">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                </div>
+              `;
+            });
+            html += '</div>';
+          } else {
+            html = `<div style="text-align: center; padding: 2rem; color: #8e8e8e;">No saved ${type === 'all' ? 'posts' : type}</div>`;
+          }
+        } else {
+          html = '<div style="text-align: center; padding: 2rem; color: #8e8e8e;">No saved posts yet</div>';
+        }
+        
+        container.innerHTML = html;
+        
+      } catch (error) {
+        console.error('Error loading saved posts:', error);
+        document.getElementById('savedContent').innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff4757;">Error loading</div>';
+      }
+    }
+
+    // Make functions globally available
+    window.editProfile = editProfile;
+    window.saveProfile = saveProfile;
+    window.showSettingsModal = showSettingsModal;
+    window.showSavedPosts = showSavedPosts;
+    window.showSavedTab = showSavedTab;
+    window.loadSavedContent = loadSavedContent;
+    window.togglePostMenu = togglePostMenu;
+    window.visitUserProfile = visitUserProfile;
+    window.startDirectMessage = startDirectMessage;
+    window.followUserFromPost = followUserFromPost;
+    window.deletePost = deletePost;
+    window.toggleLike = toggleLike;
+    window.toggleSave = toggleSave;
+    window.showComments = showComments;
+    window.sharePost = sharePost;
+    window.showLikes = showLikes;
+    window.openCreatePostModal = openCreatePostModal;
+    window.openCreateReelModal = openCreateReelModal;
+    window.showSection = showSection;
+    window.goToHome = goToHome;
+    window.logout = logout;
+    window.loadReelsFeed = loadReelsFeed;
+    window.navigateReel = navigateReel;
+    window.toggleReelPlayPause = toggleReelPlayPause;
+    window.refreshMessages = refreshMessages;
+    window.blockCurrentUser = blockCurrentUser;
+    window.hideCurrentChat = hideCurrentChat;
+    window.showChatThemes = showChatThemes;
+    window.applyChatTheme = applyChatTheme;
+    window.resetChatTheme = resetChatTheme;
+    window.downloadUserData = downloadUserData;
+    window.toggleChatLock = toggleChatLock;
+    window.setupHideChat = setupHideChat;
+    window.viewHiddenChats = viewHiddenChats;
+    window.unhideChat = unhideChat;
+    window.disableAccount = disableAccount;
+    window.showBlockedAccounts = showBlockedAccounts;
+    window.openContentPopup = openContentPopup;
+    window.closeContentPopup = closeContentPopup;
+    window.editContent = editContent;
+    window.deleteContent = deleteContent;
+    window.showUserContentTab = showUserContentTab;
+    window.followUserFromProfile = followUserFromProfile;
+    window.closeUserProfileModal = closeUserProfileModal;
+    window.addComment = addComment;
+    window.closeCommentsModal = closeCommentsModal;
+    window.closeShareModal = closeShareModal;
+    window.copyPostLink = copyPostLink;
+    window.shareToWhatsApp = shareToWhatsApp;
+    window.downloadContent = downloadContent;
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       // Check if Supabase is loaded
@@ -4729,6 +4997,10 @@
             <div class="settings-item" onclick="showChatThemes(); this.closest('.modal').remove();" style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; color: #fff;">
               <h4 style="margin: 0 0 4px 0;">🎨 Chat Themes</h4>
               <p style="margin: 0; color: #8e8e8e; font-size: 14px;">Customize your chat background</p>
+            </div>
+            <div class="settings-item" onclick="showSavedPosts(); this.closest('.modal').remove();" style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; color: #fff;">
+              <h4 style="margin: 0 0 4px 0;">💾 Saved Posts</h4>
+              <p style="margin: 0; color: #8e8e8e; font-size: 14px;">View your saved posts and reels</p>
             </div>
             <div class="settings-item" style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff;">
               <h4 style="margin: 0 0 8px 0;">🔍 Hidden Chats</h4>
@@ -5493,6 +5765,58 @@
       } catch (error) {
         console.error('Error deleting content:', error);
         alert('Failed to delete content');
+      }
+    }
+
+    // Missing functions that are referenced in HTML
+    function refreshMessages() {
+      if (window.currentChat) {
+        loadMessages(window.currentChat.partnerId);
+      } else {
+        loadChats();
+      }
+    }
+
+    function blockCurrentUser() {
+      if (!window.currentChat) {
+        alert('No active chat to block');
+        return;
+      }
+      
+      if (confirm(`Block ${window.currentChat.partnerName}? They won't be able to message you.`)) {
+        alert('Block functionality - coming soon!');
+      }
+    }
+
+    function showBlockedAccounts() {
+      alert('Blocked accounts feature - coming soon!');
+    }
+
+    function downloadContent(postId) {
+      alert('Download content feature - coming soon!');
+    }
+
+    function navigateReel(direction) {
+      if (direction === 'up' && currentReelIndex > 0) {
+        currentReelIndex--;
+      } else if (direction === 'down' && currentReelIndex < reelsData.length - 1) {
+        currentReelIndex++;
+      }
+      
+      const reelItems = document.querySelectorAll('.reel-video-item');
+      reelItems.forEach((item, index) => {
+        item.style.transform = `translateY(${(index - currentReelIndex) * 100}%)`;
+      });
+      
+      document.getElementById('reelUpBtn').style.display = currentReelIndex > 0 ? 'block' : 'none';
+      document.getElementById('reelDownBtn').style.display = currentReelIndex < reelsData.length - 1 ? 'block' : 'none';
+    }
+
+    function toggleReelPlayPause(video) {
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
       }
     }
 

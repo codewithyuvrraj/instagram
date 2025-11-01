@@ -104,7 +104,7 @@ function setupEventListeners() {
   // Only setup logout handler - login/signup handled in auth.html
   document.getElementById('btn-logout')?.addEventListener('click', handleLogout);
 
-  // Enhanced search functionality
+  // Enhanced search functionality with 2+ character requirement
   const searchInput = document.getElementById('searchQuery');
   if (searchInput) {
     let searchTimeout;
@@ -112,9 +112,22 @@ function setupEventListeners() {
     // Search on input with debounce
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        searchUsers(e.target.value);
-      }, 300);
+      const query = e.target.value.trim();
+      
+      if (query.length === 0) {
+        // Load all users when empty
+        searchTimeout = setTimeout(() => {
+          loadAllUsers();
+        }, 300);
+      } else if (query.length >= 2) {
+        // Search when 2+ characters
+        searchTimeout = setTimeout(() => {
+          searchUsers(query);
+        }, 300);
+      } else {
+        // Show hint for 1 character
+        searchUsers(query);
+      }
     });
     
     // Also search on Enter key press
@@ -122,7 +135,14 @@ function setupEventListeners() {
       if (e.key === 'Enter') {
         e.preventDefault();
         clearTimeout(searchTimeout);
-        searchUsers(e.target.value);
+        const query = e.target.value.trim();
+        if (query.length >= 2) {
+          searchUsers(query);
+        } else if (query.length === 0) {
+          loadAllUsers();
+        } else {
+          searchUsers(query); // Show hint
+        }
       }
     });
     
@@ -567,24 +587,33 @@ window.loadChats = async function() {
   }
 }
 
-// Enhanced search users function with persistent follow status
+// Enhanced search users function with 2+ character search
 window.searchUsers = async function(query) {
   const currentUser = window.currentUser;
   try {
     let users;
     let error;
     
-    if (!query || !query.trim()) {
-      // Load all users when no search query
-      const result = await window.sb
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      users = result.data;
-      error = result.error;
+    if (!query || query.trim().length < 2) {
+      // Show message for short queries
+      const searchResults = document.getElementById('searchResults');
+      if (searchResults) {
+        if (query && query.trim().length < 2) {
+          searchResults.innerHTML = '<div class="search-hint">💡 Type at least 2 characters to search</div>';
+        } else {
+          // Load all users when no search query
+          const result = await window.sb
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+          users = result.data;
+          error = result.error;
+        }
+      }
+      if (query && query.trim().length < 2) return;
     } else {
-      // Search users by username or full name
+      // Search users by username or full name with partial matching
       const result = await window.sb
         .from('profiles')
         .select('*')
@@ -657,7 +686,7 @@ window.searchUsers = async function(query) {
             </div>
             <div class="user-actions">
               <button class="btn ${isFollowing ? 'btn-accent' : 'btn-primary'}" onclick="event.stopPropagation(); followUser('${user.id}')" title="${isFollowing ? 'Unfollow' : 'Follow'} ${user.username}">${isFollowing ? 'Following' : 'Follow'}</button>
-              <button class="btn btn-secondary" onclick="event.stopPropagation(); startDirectMessage('${user.id}', '${user.username}')" title="Message ${user.username}">Message</button>
+              <button class="btn btn-secondary" onclick="event.stopPropagation(); startDirectMessageFromSearch('${user.id}', '${user.username}')" title="Message ${user.username}">Message</button>
             </div>
           </div>
         `;
@@ -1016,7 +1045,31 @@ window.followUser = async function(userId) {
   }
 };
 
-// Start direct message function
+// Start direct message function from search
+window.startDirectMessageFromSearch = function(partnerId, partnerName) {
+  console.log('Starting direct message from search with:', partnerId, partnerName);
+  
+  // Switch to messages section first
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-section="messages"]')?.classList.add('active');
+  document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('messagesSection')?.classList.add('active');
+  
+  // Update section title
+  const sectionTitle = document.getElementById('sectionTitle');
+  if (sectionTitle) sectionTitle.textContent = 'Messages';
+  
+  // Small delay to ensure section is loaded and then open chat
+  setTimeout(async () => {
+    await window.openChat(partnerId, partnerName);
+    // Refresh chats list to include this new conversation
+    setTimeout(() => {
+      if (window.loadChats) window.loadChats();
+    }, 500);
+  }, 300);
+};
+
+// Start direct message function (existing)
 window.startDirectMessage = function(partnerId, partnerName) {
   console.log('Starting direct message with:', partnerId, partnerName);
   // Switch to messages section

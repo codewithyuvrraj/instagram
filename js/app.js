@@ -675,9 +675,9 @@ window.searchUsers = async function(query) {
         const isFollowing = followingIds.includes(user.id);
         
         html += `
-          <div class="user-item" style="position: relative; cursor: default;">
+          <div class="user-item" style="position: relative; cursor: default;" onclick="handleUserItemClick(event, '${user.id}', '${user.username}')">
             <div style="display: flex; align-items: center; flex: 1; gap: 12px;">
-              <button onclick="event.stopPropagation(); toggleUserMenu(event, '${user.id}', '${user.username}', '${user.id}')" title="More options" style="padding: 10px !important; background: rgba(255, 255, 255, 0.25) !important; border: 3px solid rgba(255, 255, 255, 0.5) !important; border-radius: 50% !important; color: #ffffff !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 42px !important; height: 42px !important; flex-shrink: 0 !important; transition: all 0.2s ease !important; box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important; z-index: 100 !important;" onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.transform='scale(1.1)';" onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1)';">
+              <button onclick="handleUserMenuClick(event, '${user.id}', '${user.username}', '${user.id}')" title="More options" style="padding: 10px !important; background: rgba(255, 255, 255, 0.25) !important; border: 3px solid rgba(255, 255, 255, 0.5) !important; border-radius: 50% !important; color: #ffffff !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 42px !important; height: 42px !important; flex-shrink: 0 !important; transition: all 0.2s ease !important; box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important; z-index: 100 !important;" onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.transform='scale(1.1)';" onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1)';">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
                   <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                 </svg>
@@ -695,8 +695,8 @@ window.searchUsers = async function(query) {
               </div>
             </div>
             <div class="user-actions" style="display: flex; gap: 8px; align-items: center;">
-              <button class="btn ${isFollowing ? 'btn-accent' : 'btn-primary'}" onclick="event.stopPropagation(); followUser('${user.id}')" title="${isFollowing ? 'Unfollow' : 'Follow'} ${user.username}" style="padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">${isFollowing ? 'Following' : 'Follow'}</button>
-              <button class="btn btn-secondary" onclick="event.stopPropagation(); startDirectMessageFromSearch('${user.id}', '${user.username}')" title="Message ${user.username}" style="padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.9rem; background: #262626; color: #ffffff;">Message</button>
+              <button class="btn ${isFollowing ? 'btn-accent' : 'btn-primary'}" onclick="handleActionClick(event, 'followUser', '${user.id}')" title="${isFollowing ? 'Unfollow' : 'Follow'} ${user.username}" style="padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">${isFollowing ? 'Following' : 'Follow'}</button>
+              <button class="btn btn-secondary" onclick="handleActionClick(event, 'startDirectMessageFromSearch', '${user.id}', '${user.username}')" title="Message ${user.username}" style="padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.9rem; background: #262626; color: #ffffff;">Message</button>
             </div>
             <div class="post-menu" id="userMenu-${user.id}" style="position: absolute; top: 100%; left: 0; background: rgba(20, 20, 30, 0.98); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; min-width: 180px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); backdrop-filter: blur(15px); z-index: 1000; display: none; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; overflow: hidden;">
               <button class="post-menu-item" onclick="handleMenuItemClick(event, 'openEnhancedUserProfile', '${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
@@ -1397,9 +1397,45 @@ window.handleMenuItemClick = function(event, action, ...args) {
   }
 };
 
+// Handle user menu button click
+window.handleUserMenuClick = function(event, userId, username, menuId) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  toggleUserMenu(event, userId, username, menuId);
+};
+
+// Handle user item click (for opening chat)
+window.handleUserItemClick = function(event, userId, username) {
+  // Only open chat if not clicking on menu button or menu items
+  if (!event.target.closest('.post-more') && 
+      !event.target.closest('.post-menu') &&
+      !event.target.closest('button')) {
+    // Switch to messages and open chat
+    showSection('messages');
+    setTimeout(() => {
+      openChat(userId, username);
+    }, 100);
+  }
+};
+
+// Handle action button clicks
+window.handleActionClick = function(event, action, ...args) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Execute the action
+  if (typeof window[action] === 'function') {
+    window[action](...args);
+  }
+};
+
 // Make functions globally available
 if (!window.followUser) window.followUser = followUser;
 if (!window.refreshMessages) window.refreshMessages = refreshMessages;
+if (!window.handleUserMenuClick) window.handleUserMenuClick = handleUserMenuClick;
+if (!window.handleUserItemClick) window.handleUserItemClick = handleUserItemClick;
+if (!window.handleActionClick) window.handleActionClick = handleActionClick;
 
 // Setup global message subscription when user is logged in
 if (window.currentUser) {

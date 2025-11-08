@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Three Dots</title>
+    <style>
+        body { background: #1a1a1a; color: white; padding: 20px; }
+        .user-item { display: flex; align-items: center; padding: 1rem; border: 1px solid #333; margin: 10px 0; position: relative; }
+        .dots-btn { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 12px; }
+        .user-avatar { width: 44px; height: 44px; background: #e1306c; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px; }
+        .user-info { flex: 1; }
+        .dropdown { position: absolute; top: 100%; left: 0; background: rgba(20,20,30,0.98); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; min-width: 180px; z-index: 1000; display: none; }
+        .dropdown.show { display: block; }
+        .dropdown-item { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: none; border: none; color: white; width: 100%; text-align: left; cursor: pointer; }
+        .dropdown-item:hover { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+    <h1>Three Dots Test</h1>
+    
+    <div class="user-item">
+        <button class="dots-btn" onclick="toggleMenu('menu1')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+        </button>
+        <div class="user-avatar">J</div>
+        <div class="user-info">
+            <div>@john_doe</div>
+            <div style="color: #888;">John Doe</div>
+        </div>
+        <div class="dropdown" id="menu1">
+            <button class="dropdown-item" onclick="alert('View Profile')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+                View Profile
+            </button>
+            <button class="dropdown-item" onclick="alert('Message')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+                </svg>
+                Message
+            </button>
+            <button class="dropdown-item" onclick="alert('Follow')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Follow
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu(menuId) {
+            document.querySelectorAll('.dropdown').forEach(m => m.classList.remove('show'));
+            document.getElementById(menuId).classList.add('show');
+        }
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dots-btn') && !e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown').forEach(m => m.classList.remove('show'));
+            }
+        });
+    </script>
+</body>
+</html>

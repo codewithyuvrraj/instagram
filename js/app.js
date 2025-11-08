@@ -675,7 +675,7 @@ window.searchUsers = async function(query) {
         const isFollowing = followingIds.includes(user.id);
         
         html += `
-          <div class="user-item" style="position: relative; cursor: default;" onclick="handleUserItemClick(event, '${user.id}', '${user.username}')">
+          <div class="user-item" style="position: relative; cursor: default;">
             <div style="display: flex; align-items: center; flex: 1; gap: 12px;">
               <button onclick="handleUserMenuClick(event, '${user.id}', '${user.username}', '${user.id}')" title="More options" style="padding: 10px !important; background: rgba(255, 255, 255, 0.25) !important; border: 3px solid rgba(255, 255, 255, 0.5) !important; border-radius: 50% !important; color: #ffffff !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 42px !important; height: 42px !important; flex-shrink: 0 !important; transition: all 0.2s ease !important; box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important; z-index: 100 !important;" onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.transform='scale(1.1)';" onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1)';">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
@@ -688,7 +688,7 @@ window.searchUsers = async function(query) {
                   `<span style="color: white; font-weight: 600; font-size: 1.2rem;">${user.username?.[0]?.toUpperCase() || 'U'}</span>`
                 }
               </div>
-              <div class="user-info" style="pointer-events: none;">
+              <div class="user-info" onclick="openUserProfile('${user.id}', '${user.username}')" style="cursor: pointer;">
                 <div class="user-name">@${user.username}</div>
                 <div class="user-fullname">${user.full_name || 'No name provided'}</div>
                 ${user.bio ? `<div class="user-bio">${user.bio.length > 50 ? user.bio.substring(0, 50) + '...' : user.bio}</div>` : ''}
@@ -699,7 +699,7 @@ window.searchUsers = async function(query) {
               <button class="btn btn-secondary" onclick="handleActionClick(event, 'startDirectMessageFromSearch', '${user.id}', '${user.username}')" title="Message ${user.username}" style="padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.9rem; background: #262626; color: #ffffff;">Message</button>
             </div>
             <div class="post-menu" id="userMenu-${user.id}" style="position: absolute; top: 100%; left: 0; background: rgba(20, 20, 30, 0.98); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; min-width: 180px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); backdrop-filter: blur(15px); z-index: 1000; display: none; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; overflow: hidden;">
-              <button class="post-menu-item" onclick="handleMenuItemClick(event, 'openEnhancedUserProfile', '${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
+              <button class="post-menu-item" onclick="handleMenuItemClick(event, 'openUserProfile', '${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                 </svg>
@@ -1405,18 +1405,27 @@ window.handleUserMenuClick = function(event, userId, username, menuId) {
   toggleUserMenu(event, userId, username, menuId);
 };
 
-// Handle user item click (for opening chat)
-window.handleUserItemClick = function(event, userId, username) {
-  // Only open chat if not clicking on menu button or menu items
-  if (!event.target.closest('.post-more') && 
-      !event.target.closest('.post-menu') &&
-      !event.target.closest('button')) {
-    // Switch to messages and open chat
-    showSection('messages');
-    setTimeout(() => {
-      openChat(userId, username);
-    }, 100);
-  }
+// Open user profile function
+window.openUserProfile = function(userId, username) {
+  // Create user profile modal
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-backdrop" onclick="this.parentElement.remove()"></div>
+    <div class="modal-dialog" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>@${username}</h3>
+        <button onclick="this.closest('.modal').remove()" class="close-btn">×</button>
+      </div>
+      <div class="modal-body" style="padding: 1rem;">
+        <div style="text-align: center; padding: 2rem; color: #8e8e8e;">Loading profile...</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  // Load user profile data
+  loadUserProfileData(userId, username, modal);
 };
 
 // Handle action button clicks
@@ -1430,12 +1439,102 @@ window.handleActionClick = function(event, action, ...args) {
   }
 };
 
+// Load user profile data
+window.loadUserProfileData = async function(userId, username, modal) {
+  try {
+    // Get user profile
+    const { data: profile } = await window.sb
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    // Get user posts count
+    const { count: postsCount } = await window.sb
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    
+    // Get followers count
+    const { count: followersCount } = await window.sb
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('followee_id', userId);
+    
+    // Get following count
+    const { count: followingCount } = await window.sb
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', userId);
+    
+    // Check if current user follows this user
+    let isFollowing = false;
+    if (window.currentUser) {
+      const { data: followData } = await window.sb
+        .from('follows')
+        .select('id')
+        .eq('follower_id', window.currentUser.id)
+        .eq('followee_id', userId)
+        .maybeSingle();
+      isFollowing = !!followData;
+    }
+    
+    // Update modal content
+    const modalBody = modal.querySelector('.modal-body');
+    modalBody.innerHTML = `
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+          ${profile?.avatar_url ? 
+            `<img src="${profile.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" />` : 
+            `<span style="color: white; font-size: 2rem; font-weight: 600;">${username[0].toUpperCase()}</span>`
+          }
+        </div>
+        <h2 style="margin: 0 0 0.5rem 0; color: #ffffff;">@${username}</h2>
+        ${profile?.full_name ? `<p style="margin: 0 0 1rem 0; color: #8e8e8e;">${profile.full_name}</p>` : ''}
+        ${profile?.bio ? `<p style="margin: 0 0 1rem 0; color: #ffffff; line-height: 1.4;">${profile.bio}</p>` : ''}
+        
+        <div style="display: flex; justify-content: center; gap: 2rem; margin: 1.5rem 0;">
+          <div style="text-align: center;">
+            <div style="font-size: 1.2rem; font-weight: 600; color: #ffffff;">${postsCount || 0}</div>
+            <div style="color: #8e8e8e; font-size: 0.9rem;">posts</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 1.2rem; font-weight: 600; color: #ffffff;">${followersCount || 0}</div>
+            <div style="color: #8e8e8e; font-size: 0.9rem;">followers</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 1.2rem; font-weight: 600; color: #ffffff;">${followingCount || 0}</div>
+            <div style="color: #8e8e8e; font-size: 0.9rem;">following</div>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          ${window.currentUser && userId !== window.currentUser.id ? `
+            <button onclick="followUser('${userId}')" class="btn ${isFollowing ? 'btn-accent' : 'btn-primary'}" style="padding: 8px 24px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600;">
+              ${isFollowing ? 'Following' : 'Follow'}
+            </button>
+            <button onclick="startDirectMessageFromSearch('${userId}', '${username}'); this.closest('.modal').remove();" class="btn btn-secondary" style="padding: 8px 24px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; background: #262626; color: #ffffff;">
+              Message
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('Error loading user profile:', error);
+    const modalBody = modal.querySelector('.modal-body');
+    modalBody.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff4757;">Error loading profile</div>';
+  }
+};
+
 // Make functions globally available
 if (!window.followUser) window.followUser = followUser;
 if (!window.refreshMessages) window.refreshMessages = refreshMessages;
 if (!window.handleUserMenuClick) window.handleUserMenuClick = handleUserMenuClick;
-if (!window.handleUserItemClick) window.handleUserItemClick = handleUserItemClick;
 if (!window.handleActionClick) window.handleActionClick = handleActionClick;
+if (!window.openUserProfile) window.openUserProfile = openUserProfile;
+if (!window.loadUserProfileData) window.loadUserProfileData = loadUserProfileData;
 
 // Setup global message subscription when user is logged in
 if (window.currentUser) {

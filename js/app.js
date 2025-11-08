@@ -534,8 +534,8 @@ window.loadChats = async function() {
           <div class="chat-item" onclick="openChat('${userId}', '${user?.username || 'User'}')">
             <div class="chat-avatar-container">
               <div class="chat-avatar">
-                ${user?.avatar_url && user.avatar_url.trim() && user.avatar_url !== 'null' ? 
-                  `<img src="${user.avatar_url}" alt="${user.username}" />` : 
+                ${user?.avatar_url && user.avatar_url.trim() && user.avatar_url !== 'null' && user.avatar_url !== '' && user.avatar_url !== 'undefined' ? 
+                  `<img src="${user.avatar_url}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><div class="avatar-placeholder" style="display: none;">${user?.username?.[0]?.toUpperCase() || 'U'}</div>` : 
                   `<div class="avatar-placeholder">${user?.username?.[0]?.toUpperCase() || 'U'}</div>`
                 }
               </div>
@@ -675,7 +675,7 @@ window.searchUsers = async function(query) {
         const isFollowing = followingIds.includes(user.id);
         
         html += `
-          <div class="user-item" style="position: relative;">
+          <div class="user-item" style="position: relative; cursor: default;">
             <div style="display: flex; align-items: center; flex: 1; gap: 12px;">
               <button onclick="event.stopPropagation(); toggleUserMenu(event, '${user.id}', '${user.username}', '${user.id}')" title="More options" style="padding: 10px !important; background: rgba(255, 255, 255, 0.25) !important; border: 3px solid rgba(255, 255, 255, 0.5) !important; border-radius: 50% !important; color: #ffffff !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 42px !important; height: 42px !important; flex-shrink: 0 !important; transition: all 0.2s ease !important; box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important; z-index: 100 !important;" onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.transform='scale(1.1)';" onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1)';">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
@@ -688,7 +688,7 @@ window.searchUsers = async function(query) {
                   `<span style="color: white; font-weight: 600; font-size: 1.2rem;">${user.username?.[0]?.toUpperCase() || 'U'}</span>`
                 }
               </div>
-              <div class="user-info">
+              <div class="user-info" style="pointer-events: none;">
                 <div class="user-name">@${user.username}</div>
                 <div class="user-fullname">${user.full_name || 'No name provided'}</div>
                 ${user.bio ? `<div class="user-bio">${user.bio.length > 50 ? user.bio.substring(0, 50) + '...' : user.bio}</div>` : ''}

@@ -1,0 +1,11 @@
+Add this script tag before closing </body> tag in index.html:
+
+<script src="fix-all-issues.js"></script>
+<script src="fix-console-errors.js"></script>
+
+This will fix:
+1. ✅ Remove chatbox opening when clicking username
+2. ✅ Fix profile pictures in search results  
+3. ✅ Fix profile pictures in messages section
+4. ✅ Ensure three dots are always visible
+5. ✅ Prevent unwanted click events

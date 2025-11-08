@@ -525,7 +525,7 @@ input::placeholder {
   align-items: center;
   padding: 1rem;
   border-bottom: 1px solid var(--border);
-  cursor: pointer;
+  cursor: default;
   transition: background-color 0.2s ease;
   position: relative;
 }

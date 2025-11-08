@@ -699,19 +699,19 @@ window.searchUsers = async function(query) {
               <button class="btn btn-secondary" onclick="event.stopPropagation(); startDirectMessageFromSearch('${user.id}', '${user.username}')" title="Message ${user.username}" style="padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.9rem; background: #262626; color: #ffffff;">Message</button>
             </div>
             <div class="post-menu" id="userMenu-${user.id}" style="position: absolute; top: 100%; left: 0; background: rgba(20, 20, 30, 0.98); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; min-width: 180px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); backdrop-filter: blur(15px); z-index: 1000; display: none; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; overflow: hidden;">
-              <button class="post-menu-item" onclick="openEnhancedUserProfile('${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
+              <button class="post-menu-item" onclick="handleMenuItemClick(event, 'openEnhancedUserProfile', '${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                 </svg>
                 View Profile
               </button>
-              <button class="post-menu-item" onclick="startDirectMessageFromSearch('${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
+              <button class="post-menu-item" onclick="handleMenuItemClick(event, 'startDirectMessageFromSearch', '${user.id}', '${user.username}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
                 </svg>
                 Message
               </button>
-              <button class="post-menu-item" onclick="followUser('${user.id}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
+              <button class="post-menu-item" onclick="handleMenuItemClick(event, 'followUser', '${user.id}')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: none; color: #ffffff; text-align: left; cursor: pointer; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                 </svg>
@@ -1331,32 +1331,69 @@ function setupGlobalMessageSubscription() {
 
 // Toggle user menu function
 window.toggleUserMenu = function(event, userId, username, menuId) {
+  event.preventDefault();
   event.stopPropagation();
   
-  // Close all other menus
-  document.querySelectorAll('.post-menu').forEach(menu => {
-    if (menu.id !== `userMenu-${menuId}`) {
-      menu.style.display = 'none';
-      menu.style.opacity = '0';
-      menu.style.transform = 'translateY(-10px)';
+  const menu = document.getElementById(`userMenu-${menuId}`);
+  if (!menu) return;
+  
+  const isOpen = menu.style.display === 'block' && menu.style.opacity === '1';
+  
+  // Close all other menus first
+  document.querySelectorAll('.post-menu').forEach(otherMenu => {
+    if (otherMenu.id !== `userMenu-${menuId}`) {
+      otherMenu.classList.remove('show');
+      otherMenu.style.display = 'none';
+      otherMenu.style.opacity = '0';
+      otherMenu.style.transform = 'translateY(-10px)';
     }
   });
   
-  const menu = document.getElementById(`userMenu-${menuId}`);
-  if (menu) {
-    if (menu.style.display === 'none' || menu.style.display === '') {
-      menu.style.display = 'block';
-      setTimeout(() => {
-        menu.style.opacity = '1';
-        menu.style.transform = 'translateY(0)';
-      }, 10);
-    } else {
-      menu.style.opacity = '0';
-      menu.style.transform = 'translateY(-10px)';
-      setTimeout(() => {
-        menu.style.display = 'none';
-      }, 300);
-    }
+  // Toggle current menu
+  if (isOpen) {
+    // Close menu
+    menu.classList.remove('show');
+    menu.style.opacity = '0';
+    menu.style.transform = 'translateY(-10px)';
+    setTimeout(() => {
+      menu.style.display = 'none';
+    }, 300);
+  } else {
+    // Open menu
+    menu.style.display = 'block';
+    menu.classList.add('show');
+    setTimeout(() => {
+      menu.style.opacity = '1';
+      menu.style.transform = 'translateY(0)';
+    }, 10);
+  }
+};
+
+// Close all menus function
+window.closeAllMenus = function() {
+  document.querySelectorAll('.post-menu').forEach(menu => {
+    menu.classList.remove('show');
+    menu.style.display = 'none';
+    menu.style.opacity = '0';
+    menu.style.transform = 'translateY(-10px)';
+  });
+  
+  document.querySelectorAll('.dropdown-menu, .context-menu').forEach(menu => {
+    menu.style.display = 'none';
+  });
+};
+
+// Enhanced menu item click handler
+window.handleMenuItemClick = function(event, action, ...args) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Close all menus first
+  closeAllMenus();
+  
+  // Execute the action
+  if (typeof window[action] === 'function') {
+    window[action](...args);
   }
 };
 
@@ -1371,12 +1408,38 @@ if (window.currentUser) {
 
 // Close menus when clicking outside
 document.addEventListener('click', function(event) {
-  if (!event.target.closest('.post-menu') && !event.target.closest('button[onclick*="toggleUserMenu"]')) {
+  // Close all menus if clicking outside of menu or menu trigger
+  if (!event.target.closest('.post-menu') && 
+      !event.target.closest('button[onclick*="toggleUserMenu"]') &&
+      !event.target.closest('.post-more-container') &&
+      !event.target.closest('.message-actions')) {
+    
+    // Close all post menus
     document.querySelectorAll('.post-menu').forEach(menu => {
+      menu.classList.remove('show');
       menu.style.display = 'none';
       menu.style.opacity = '0';
       menu.style.transform = 'translateY(-10px)';
     });
+    
+    // Close any other open dropdowns or modals
+    document.querySelectorAll('.dropdown-menu, .context-menu').forEach(menu => {
+      menu.style.display = 'none';
+    });
+  }
+});
+
+// Prevent menu from closing when clicking inside it
+document.addEventListener('click', function(event) {
+  if (event.target.closest('.post-menu')) {
+    event.stopPropagation();
+  }
+});
+
+// Close menus with ESC key
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    closeAllMenus();
   }
 });
 
